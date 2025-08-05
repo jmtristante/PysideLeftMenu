@@ -1,0 +1,23 @@
+first_line: 3
+field_column: 3
+format_column: 6
+calculation_column: 9
+dimension_column: 10
+sheets:
+- HUB*
+- LNK*
+- SAT*
+formats:
+- pattern: ^CHAR\s*\((\d+)\)\s*$
+  type: VARCHAR
+  size: \1
+- pattern: ^NUM\s*\((\d+)\)\s*$
+  type: INTEGER
+  size: \1
+- pattern: ^DEC\s*\((\d+)\,(\d+)\)\s*$
+  type: DECIMAL
+  size: \1
+  precision: \2
+- pattern: ^Date\s*$
+  type: DATE
+  size: '10'

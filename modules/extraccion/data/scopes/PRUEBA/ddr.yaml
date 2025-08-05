@@ -1,0 +1,11 @@
+first_line: 3
+field_column: 3
+format_column: 5
+calculation_column: 7
+dimension_column: 19
+sheets:
+- Prueba*
+formats:
+- pattern: hola
+  type: VARCHAR
+  size: ''

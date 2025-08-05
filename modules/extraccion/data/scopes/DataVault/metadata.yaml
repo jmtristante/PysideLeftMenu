@@ -1,0 +1,6 @@
+Separator: '|'
+Header: false
+Extension: csv
+Nulable: false
+Encoding: UTF-8
+Endline: LF

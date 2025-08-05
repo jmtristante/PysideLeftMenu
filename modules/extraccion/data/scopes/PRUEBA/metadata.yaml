@@ -1,0 +1,6 @@
+Separator: '|'
+Header: true
+Extension: txt
+Nulable: false
+Encoding: UTF-8
+Endline: LF
