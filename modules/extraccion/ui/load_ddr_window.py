@@ -5,6 +5,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 import sys
 
+from widgets.card_frame import CardFrame
+
 MODULE_BASE = os.path.dirname(os.path.dirname(__file__))
 
 from modules.extraccion.src.load_excel import load_config, read_excel, create_scope
@@ -12,9 +14,10 @@ from modules.extraccion.src.load_excel import load_config, read_excel, create_sc
 sys.path.append(MODULE_BASE)
 
 
-class LoadDDRWindow(QWidget):
+class LoadDDRWindow(CardFrame):
     def __init__(self):
-        super().__init__()
+        super().__init__(title="Extracción/load ddr")
+        MODULE_BASE = 'modules/extraccion'
         self.SCOPES_DIR = os.path.join(MODULE_BASE, "data/scopes")
         self.setWindowTitle("Extractor DDR")
         self.setMinimumWidth(400)
@@ -38,7 +41,7 @@ class LoadDDRWindow(QWidget):
         self.status_label.setAlignment(Qt.AlignCenter)
 
         # Layout
-        layout = QVBoxLayout()
+        layout = self.layout()
         layout.addWidget(self.scope_label)
         layout.addWidget(self.scope_combo)
         layout.addWidget(self.version_label)

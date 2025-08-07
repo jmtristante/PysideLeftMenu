@@ -6,6 +6,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction
 from modules_config import MODULES  # <-- Importa la configuración de módulos
+from widgets.card_frame import CardFrame
+from widgets.card_frame_viewer import CardFrameViewer
+from modules.extraccion.ui.scope_editor_window import ScopeEditorWindow
 
 # Construir diccionario de clases de pantallas y lista de items de menú
 SCREEN_CLASSES = {}
@@ -150,36 +153,6 @@ class NoTitleDockWidget(QDockWidget):
         super().__init__(*args, **kwargs)
         self.setTitleBarWidget(QWidget(self))
 
-class ClosableScreen(QWidget):
-    closed = Signal(str)
-    def __init__(self, key, inner_widget):
-        super().__init__()
-        self.key = key
-        self.inner_widget = inner_widget  # Guarda referencia para limpieza
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        # Barra superior con botón cerrar
-        bar = QHBoxLayout()
-        bar.setContentsMargins(0, 0, 0, 0)
-        bar.setSpacing(0)
-        label = QLabel(f"{key}")
-        # label.setStyleSheet("font-weight: bold; font-size: 14px; padding: 8px;")
-        bar.addWidget(label)
-        bar.addStretch()
-        btn_close = QPushButton("✕")
-        btn_close.setFixedSize(28, 28)
-        # btn_close.setStyleSheet("border: none; font-size: 16px; color: #a00;")
-        btn_close.clicked.connect(self._close)
-        bar.addWidget(btn_close)
-        layout.addLayout(bar)
-        layout.addWidget(inner_widget)
-
-    def _close(self):
-        # Llama a la limpieza de procesos en segundo plano si existe
-        if hasattr(self.inner_widget, "close_background_tasks"):
-            self.inner_widget.close_background_tasks()
-        self.closed.emit(self.key)
 
 class BlankScreen(QWidget):
     def __init__(self):
@@ -193,6 +166,13 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Proyecto PySide6 Modular")
         self.resize(900, 600)
 
+        # Fondo gris global
+        self.setStyleSheet("""
+            QMainWindow, QWidget {
+                background: #f6f7fa;
+            }
+        """)
+
         # Barra superior con nombre y botón hamburguesa
         toolbar = QToolBar()
         toolbar.setMovable(False)
@@ -203,20 +183,15 @@ class MainWindow(QMainWindow):
         self.menu_action.triggered.connect(self.toggle_sidebar)
         toolbar.addAction(self.menu_action)
 
-        #title = QLabel("Proyecto PySide6 Modular")
-        # title.setStyleSheet("font-weight: bold; font-size: 16px; margin-left: 10px;")
-        #toolbar.addWidget(title)
-        # toolbar.setStyleSheet("QToolBar { spacing: 10px; }")
 
-        # Central stacked widget
-        self.stacked = QStackedWidget()
-        self.setCentralWidget(self.stacked)
-        self.screens = {}  # key -> ClosableScreen
+        # # Central widget: visor de CardFrames (ahora importado)
+        self.card_viewer = CardFrameViewer()
+        self.setCentralWidget(self.card_viewer)
+        self.screens = {}  # key -> CardFrame
 
         # Pantalla en blanco
-        self.blank_screen = BlankScreen()
-        self.stacked.addWidget(self.blank_screen)
-        self.stacked.setCurrentWidget(self.blank_screen)
+        self.blank_screen = QWidget()
+        # self.card_viewer.set_card(self.blank_screen)
 
         # Sidebar personalizado
         self.sidebar = NoTitleDockWidget(self)
@@ -230,37 +205,30 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.LeftDockWidgetArea, self.sidebar)
 
         # Selección inicial: ninguna pantalla cargada
-        self.stacked.setCurrentWidget(self.blank_screen)
+        #self.card_viewer.set_card(self.blank_screen)
 
     def cambiar_funcionalidad(self, key):
         if key not in SCREEN_CLASSES:
             return
-        # Si no existe, crear y añadir al stacked
         if key not in self.screens:
             widget = SCREEN_CLASSES[key]()
-            closable = ClosableScreen(key, widget)
-            closable.closed.connect(self.cerrar_pantalla)
-            self.stacked.addWidget(closable)
-            self.screens[key] = closable
+            widget.closed.connect(lambda: self.cerrar_pantalla(key))
+            self.screens[key] = widget
             self.sidebar_menu.set_screen_created(key, True)
-        # Mostrar pantalla
-        self.stacked.setCurrentWidget(self.screens[key])
-        # Seleccionar el botón correspondiente
+        self.card_viewer.set_card(self.screens[key])
         for k in self.sidebar_menu.func_buttons:
             self.sidebar_menu.func_buttons[k].setChecked(k == key)
 
     def cerrar_pantalla(self, key):
         if key in self.screens:
             widget = self.screens[key]
-            # Llama a la limpieza de procesos en segundo plano si existe (por seguridad extra)
-            if hasattr(widget.inner_widget, "close_background_tasks"):
-                widget.inner_widget.close_background_tasks()
-            self.stacked.removeWidget(widget)
-            widget.deleteLater()
+            if hasattr(widget, "close_background_tasks"):
+                widget.close_background_tasks()
+            self.card_viewer.clear()
             del self.screens[key]
             self.sidebar_menu.set_screen_created(key, False)
             self.sidebar_menu.deselect(key)
-            self.stacked.setCurrentWidget(self.blank_screen)
+            self.card_viewer.set_card(self.blank_screen)
 
     def toggle_sidebar(self):
         if self.sidebar.isVisible():

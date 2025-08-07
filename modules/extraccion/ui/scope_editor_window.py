@@ -2,12 +2,14 @@ import os
 import yaml
 from PySide6.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QApplication, QComboBox,
-    QTextEdit, QSpinBox, QCheckBox, QTabWidget, QScrollArea, QFrame, QInputDialog, QDialog, QSizePolicy
+    QTextEdit, QSpinBox, QCheckBox, QTabWidget, QScrollArea, QFrame, QInputDialog, QDialog, QSizePolicy,
+    QGridLayout  # <-- Añadido aquí
 )
 from PySide6.QtCore import Qt
 import sys
 
-MODULE_BASE = os.path.dirname(os.path.dirname(__file__))
+# Añade el import del CardFrame
+from widgets.card_frame import CardFrame
 
 class Scope:
     def __init__(self, scopes_dir, name):
@@ -532,66 +534,118 @@ class ExcelColumnsWidget(QWidget):
         for k, sb in self.spinboxes.items():
             sb.setValue(0)
 
-class ScopeEditorWindow(QWidget):
+class ScopeEditorWindow(CardFrame):
     def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Editor de Scope")
+        super().__init__(title="Extracción/scope")
         self.setMinimumWidth(500)
+        MODULE_BASE = 'modules/extraccion'
         self.SCOPES_DIR = os.path.join(MODULE_BASE, "data/scopes")
 
-        # Elimina self.setStyleSheet(load_stylesheet())
+        card_layout = self.layout()  # Usa el layout de contenido de CardFrame
 
-        # Widgets
-        self.scope_label = QLabel("Scope:")
+        # Scope selector y eliminar
+        scope_row = QHBoxLayout()
+        scope_row.setSpacing(12)
+        scope_label = QLabel("Scope:")
+        scope_label.setMinimumWidth(60)
+        scope_label.setStyleSheet("font-size: 15px;")
         self.scope_combo = QComboBox()
         self.scope_combo.addItems(self.get_scopes() + ["[Nuevo Scope...]"])
         self.scope_combo.setEditable(False)
         self.scope_combo.setPlaceholderText("Selecciona o crea un scope")
+        self.scope_combo.setMinimumWidth(220)
         self.delete_btn = QPushButton("Eliminar Scope")
-        self.save_btn = QPushButton("Guardar Scope")
-        self.status_label = QLabel("")
-        self.status_label.setAlignment(Qt.AlignCenter)
+        self.delete_btn.setStyleSheet("""
+            QPushButton {
+                background: #ff4d4f;
+                color: #fff;
+                border-radius: 8px;
+                font-weight: bold;
+                padding: 6px 18px;
+            }
+            QPushButton:hover {
+                background: #ff7875;
+            }
+        """)
+        scope_row.addWidget(scope_label)
+        scope_row.addWidget(self.scope_combo)
+        scope_row.addStretch()
+        scope_row.addWidget(self.delete_btn)
+        card_layout.addLayout(scope_row)
 
-        # Layout para selector y botón eliminar
-        scope_layout = QHBoxLayout()
-        scope_layout.addWidget(self.scope_combo)
-        scope_layout.addWidget(self.delete_btn)
-        scope_layout.setSpacing(12)
-
-        # Tabs
+        # Tabs con fondo blanco y bordes redondeados
         self.tabs = QTabWidget()
-        # Elimina self.tabs.setStyleSheet(...)
+        self.tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: none;
+                background: transparent;
+            }
+            QTabBar::tab {
+                background: #f3f5f8;
+                border: 1px solid #e0e0e0;
+                border-bottom: none;
+                border-radius: 8px 8px 0 0;
+                min-width: 120px;
+                min-height: 32px;
+                font-weight: bold;
+                margin-right: 2px;
+                padding: 6px 18px;
+            }
+            QTabBar::tab:selected {
+                background: #fff;
+                color: #222;
+                border-bottom: 2px solid #fff;
+            }
+            QTabBar::tab:!selected {
+                color: #888;
+            }
+        """)
+
         # --- METADATA.YAML TAB ---
-        self.meta_tab = QWidget()
-        meta_layout = QVBoxLayout(self.meta_tab)
-        meta_layout.setContentsMargins(12, 12, 12, 12)
-        meta_layout.setSpacing(10)
+        self.meta_tab = QFrame()
+        self.meta_tab.setStyleSheet("""
+            QFrame {
+                background: #fff;
+                border-radius: 12px;
+                border: 1px solid #e0e0e0;
+            }
+        """)
+        meta_layout = QGridLayout(self.meta_tab)
+        meta_layout.setContentsMargins(32, 32, 32, 32)
+        meta_layout.setHorizontalSpacing(24)
+        meta_layout.setVerticalSpacing(18)
         self.meta_fields = {}
-        for key, default, widget_type in [
-            ("Separator", "|", QLineEdit),
-            ("Header", False, QCheckBox),
-            ("Extension", "csv", QLineEdit),
-            ("Nulable", False, QCheckBox),
-            ("Encoding", "UTF-8", QLineEdit),
-            ("Endline", "LF", QLineEdit)
-        ]:
-            hlayout = QHBoxLayout()
-            lbl = QLabel(key + ":")
-            lbl.setMinimumWidth(90)
-            # Elimina setStyleSheet
-            if widget_type == QLineEdit:
-                w = QLineEdit()
-                w.setText(str(default))
-                w.setMinimumWidth(120)
-                # Elimina setStyleSheet
-            elif widget_type == QCheckBox:
-                w = QCheckBox()
-                w.setChecked(bool(default))
-                # Elimina setStyleSheet
-            hlayout.addWidget(lbl)
-            hlayout.addWidget(w)
-            meta_layout.addLayout(hlayout)
-            self.meta_fields[key] = w
+
+        # Primera columna
+        meta_layout.addWidget(QLabel("Separator:"), 0, 0)
+        sep_edit = QLineEdit()
+        meta_layout.addWidget(sep_edit, 0, 1)
+        self.meta_fields["Separator"] = sep_edit
+
+        meta_layout.addWidget(QLabel("Extension:"), 1, 0)
+        ext_edit = QLineEdit()
+        meta_layout.addWidget(ext_edit, 1, 1)
+        self.meta_fields["Extension"] = ext_edit
+
+        meta_layout.addWidget(QLabel("Encoding:"), 2, 0)
+        enc_edit = QLineEdit()
+        meta_layout.addWidget(enc_edit, 2, 1)
+        self.meta_fields["Encoding"] = enc_edit
+
+        # Segunda columna
+        header_chk = QCheckBox("Header")
+        meta_layout.addWidget(header_chk, 0, 2)
+        self.meta_fields["Header"] = header_chk
+
+        nulable_chk = QCheckBox("Nulable")
+        meta_layout.addWidget(nulable_chk, 1, 2)
+        self.meta_fields["Nulable"] = nulable_chk
+
+        meta_layout.addWidget(QLabel("Endline:"), 2, 2)
+        endline_edit = QLineEdit()
+        meta_layout.addWidget(endline_edit, 2, 3)
+        self.meta_fields["Endline"] = endline_edit
+
         self.tabs.addTab(self.meta_tab, "metadata.yaml")
 
         # --- DDR.YAML TAB ---
@@ -599,7 +653,6 @@ class ScopeEditorWindow(QWidget):
         ddr_layout = QVBoxLayout(self.ddr_tab)
         ddr_layout.setContentsMargins(12, 12, 12, 12)
         ddr_layout.setSpacing(24)
-
         self.ddr_fields = {}
 
         # --- Primera fila: columnas de excel y sheets ---
@@ -629,16 +682,30 @@ class ScopeEditorWindow(QWidget):
 
         self.tabs.addTab(self.ddr_tab, "ddr.yaml")
 
-        # Layout principal
-        layout = QVBoxLayout()
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(14)
-        layout.addWidget(self.scope_label)
-        layout.addLayout(scope_layout)
-        layout.addWidget(self.tabs)
-        layout.addWidget(self.save_btn, alignment=Qt.AlignRight)
-        layout.addWidget(self.status_label)
-        self.setLayout(layout)
+        card_layout.addWidget(self.tabs)
+
+        # Guardar y estado
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        self.save_btn = QPushButton("Guardar Scope")
+        self.save_btn.setStyleSheet("""
+            QPushButton {
+                background: #1677ff;
+                color: #fff;
+                border-radius: 8px;
+                font-weight: bold;
+                padding: 8px 28px;
+            }
+            QPushButton:hover {
+                background: #4096ff;
+            }
+        """)
+        btn_row.addWidget(self.save_btn)
+        card_layout.addLayout(btn_row)
+
+        self.status_label = QLabel("")
+        self.status_label.setStyleSheet("color: #888; font-size: 14px; margin-top: 8px;")
+        card_layout.addWidget(self.status_label, alignment=Qt.AlignLeft)
 
         # Conexiones
         self.save_btn.clicked.connect(self.save_scope)
@@ -780,28 +847,10 @@ class ScopeEditorWindow(QWidget):
                 self.status_label.setText(f"Scope '{scope_name}' eliminado.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"No se pudo eliminar el scope:\n{str(e)}")
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = ScopeEditorWindow()
-    window.show()
-    sys.exit(app.exec())
-    window = ScopeEditorWindow()
-    window.show()
-    sys.exit(app.exec())
-    sys.exit(app.exec())
-    window = ScopeEditorWindow()
-    window.show()
-    sys.exit(app.exec())
-    sys.exit(app.exec())
-    window = ScopeEditorWindow()
-    window.show()
-    sys.exit(app.exec())
-    sys.exit(app.exec())
-    window = ScopeEditorWindow()
-    window.show()
-    sys.exit(app.exec())
-    sys.exit(app.exec())
-    window = ScopeEditorWindow()
-    window.show()
-    sys.exit(app.exec())
+                # Selecciona el primer scope (índice 0)
+                if self.scope_combo.count() > 0:
+                    self.scope_combo.setCurrentIndex(0)
+                self.clear_fields()
+                self.status_label.setText(f"Scope '{scope_name}' eliminado.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"No se pudo eliminar el scope:\n{str(e)}")

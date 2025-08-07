@@ -1,5 +1,7 @@
 import os
 import sys
+
+from widgets.card_stacked import CardStacked  # Cambia import
 #import threading
 
 MODULE_BASE = os.path.dirname(os.path.dirname(__file__))
@@ -209,11 +211,9 @@ class TestController(QObject):
             self.run_next_test()
 
 
-
-class MainScreen(QWidget):
+class TestPage(CardStacked):
     def __init__(self, scopes_base_path="scopes"):
-        super().__init__()
-        self.initUI()
+        super().__init__(title="Tests de Extracción")
         # Si la ruta no es absoluta, la hacemos relativa a MODULE_BASE
         if not os.path.isabs(scopes_base_path):
             scopes_base_path = os.path.join(os.path.join(MODULE_BASE,'data'), scopes_base_path)
@@ -223,20 +223,18 @@ class MainScreen(QWidget):
         self.model = None
 
         # UI setup
+        self.init_pages()
         self.load_scopes()
 
-    def initUI(self):
-        self.setWindowTitle("Matriz de Validación de Ficheros")
+    def init_pages(self):
+        # Página 1: Formulario de selección
+        self.form_widget = QWidget()
+        form_layout = QVBoxLayout(self.form_widget)
 
-        self.principal_layout = QVBoxLayout(self)
-
-        self.form_layout = QVBoxLayout(self)
-        self.principal_layout.addLayout(self.form_layout)
-
-        self.scope_form_layout = QHBoxLayout(self)
-        self.folder_form_layout = QHBoxLayout(self)
-        self.form_layout.addLayout(self.scope_form_layout)
-        self.form_layout.addLayout(self.folder_form_layout)
+        self.scope_form_layout = QHBoxLayout()
+        self.folder_form_layout = QHBoxLayout()
+        form_layout.addLayout(self.scope_form_layout)
+        form_layout.addLayout(self.folder_form_layout)
 
         self.scope_form_layout.addWidget(QLabel("Scope:"))
 
@@ -261,22 +259,32 @@ class MainScreen(QWidget):
         self.select_input_button.clicked.connect(self.select_input_folder)
         self.folder_form_layout.addWidget(self.select_input_button)
 
-        self.principal_layout.addSpacing(40)
+        # Botón para avanzar a la página de tests
+        self.next_button = QPushButton("Siguiente")
+        self.next_button.setEnabled(False)
+        self.next_button.clicked.connect(self.goto_results_page)
+        form_layout.addWidget(self.next_button)
+
+        form_layout.addStretch()
+
+        # Página 2: Tabla y controles
+        self.results_widget = QWidget()
+        results_layout = QVBoxLayout(self.results_widget)
 
         # line edit for filtering
         self.filter_proxy_model = QSortFilterProxyModel()
         line_edit = QLineEdit()
         line_edit.setPlaceholderText("Filtrar...")
         line_edit.textChanged.connect(self.filter_proxy_model.setFilterRegularExpression)
-        self.principal_layout.addWidget(line_edit)
+        results_layout.addWidget(line_edit)
 
         self.results_table = QTableView()
         self.results_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.results_table.customContextMenuRequested.connect(self.show_context_menu)
-        self.principal_layout.addWidget(self.results_table)
+        results_layout.addWidget(self.results_table)
         self.results_table.clicked.connect(self.show_log_dialog)
 
-        self.principal_layout.addSpacing(20)
+        results_layout.addSpacing(20)
 
         # Contenedor horizontal para barra y botones
         progress_layout = QHBoxLayout()
@@ -311,7 +319,22 @@ class MainScreen(QWidget):
         self.restart_button.clicked.connect(self.restart_tests)
         progress_layout.addWidget(self.restart_button)
 
-        self.principal_layout.addLayout(progress_layout)
+        results_layout.addLayout(progress_layout)
+
+        # Añadir páginas al stack
+        self.add_widget(self.form_widget)
+        self.add_widget(self.results_widget)
+        self.set_current_index(0)
+
+        # Conectar botón atrás
+        if self.back_btn:
+            self.back_btn.clicked.connect(self.goto_form_page)
+
+    def goto_results_page(self):
+        self.set_current_index(1)
+
+    def goto_form_page(self):
+        self.set_current_index(0)
 
     def connect_controller_signals(self):
         self.controller.test_status_changed.connect(self.update_cell)
@@ -349,6 +372,7 @@ class MainScreen(QWidget):
             self.build_pending_matrix()
             self.run_button.setEnabled(True)
             self.abort_button.setEnabled(True)
+            self.next_button.setEnabled(True)
 
     def build_pending_matrix(self):
         self.progress_bar.setValue(0)
@@ -423,6 +447,7 @@ class MainScreen(QWidget):
         self.resume_button.setEnabled(False)
         self.abort_button.setEnabled(False)
         self.restart_button.setEnabled(False)
+        self.next_button.setEnabled(False)
 
     def show_context_menu(self, position):
         index = self.results_table.indexAt(position)
@@ -511,7 +536,7 @@ class MainScreen(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     scopes_base = os.path.join(MODULE_BASE, "data/scopes")
-    window = MainScreen(scopes_base)
+    window = TestPage(scopes_base)
     window.resize(900, 500)
     window.show()
     sys.exit(app.exec())
