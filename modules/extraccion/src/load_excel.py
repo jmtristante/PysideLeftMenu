@@ -116,9 +116,8 @@ def read_excel(path):
     return excel_data
 
 
-def create_scope(scope, version, excel_data):
+def create_scope(directory_name, excel_data):
     # Crear directorio del scope
-    directory_name = os.path.join(MODULE_BASE, scope, version)
     create_directory(directory_name)
 
     for extractor_data in excel_data:
@@ -140,7 +139,7 @@ def create_scope(scope, version, excel_data):
 
 def load_config(scope):
     global config
-    config_path = os.path.join(MODULE_BASE, scope, "ddr.yaml")
+    config_path = os.path.join(scope, "ddr.yaml")
     with open(config_path) as config_file:
         config = yaml.safe_load(config_file)
 

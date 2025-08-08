@@ -42,6 +42,7 @@ class SidebarMenu(QWidget):
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
+        
 
         # Botón de expandir/colapsar menú
         self.toggle_btn = QToolButton()
@@ -49,22 +50,18 @@ class SidebarMenu(QWidget):
         self.toggle_btn.setCheckable(True)
         self.toggle_btn.setChecked(True)
         self.toggle_btn.setToolTip("Contraer menú")
-        self.toggle_btn.setFixedHeight(32)
-        self.toggle_btn.setStyleSheet("border: none;")
+        self.toggle_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        self.toggle_btn.setStyleSheet("border: none; background: blue;")
         self.toggle_btn.clicked.connect(self.toggle_menu)
-        # Añade margen izquierdo para alinear con el resto del menú
-        toggle_btn_container = QWidget()
-        toggle_btn_layout = QHBoxLayout(toggle_btn_container)
-        toggle_btn_layout.setContentsMargins(10, 0, 0, 0)  # <-- margen izquierdo igual que el menú
-        toggle_btn_layout.setSpacing(0)
-        toggle_btn_layout.addWidget(self.toggle_btn, alignment=Qt.AlignLeft)
-        self.main_layout.addWidget(toggle_btn_container, alignment=Qt.AlignLeft)
+        self.main_layout.addWidget(self.toggle_btn, alignment=Qt.AlignLeft)
 
         # Contenedor para el resto del menú
         self.menu_widget = QWidget()
         self.menu_layout = QVBoxLayout(self.menu_widget)
         self.menu_layout.setContentsMargins(10, 10, 10, 10)
         self.menu_layout.setSpacing(8)
+        # Puedes establecer el fondo blanco del layout (realmente del widget que lo contiene)
+        self.menu_widget.setStyleSheet("background: purple;")
         self.main_layout.addWidget(self.menu_widget)
 
         current_module = None
@@ -80,6 +77,7 @@ class SidebarMenu(QWidget):
                 module_btn.setCheckable(True)
                 module_btn.setChecked(False)
                 module_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+                module_btn.setStyleSheet("background: transparent;")
                 module_icon = MODULE_ICONS.get(current_module)
                 icon_obj = get_icon(module_icon)
                 if icon_obj:
@@ -94,6 +92,7 @@ class SidebarMenu(QWidget):
                 module_layout.setContentsMargins(20, 0, 0, 0)
                 module_layout.setSpacing(4)
                 module_widget.setVisible(False)
+                module_widget.setStyleSheet("background: transparent;")  # Fondo transparente
                 self.menu_layout.addWidget(module_widget)
                 self.module_widgets[current_module] = module_widget
 
@@ -140,13 +139,18 @@ class SidebarMenu(QWidget):
 
         self.menu_layout.addStretch()
 
+        self.setObjectName("SidebarMenu")  # <-- Añadido para el selector QWidget#SidebarMenu
         self.setStyleSheet("""
+            QWidget {
+                background: yellow;
+                border-right: 1.5px solid #d0d0d0;
+            }
             QToolButton {
                 font-weight: bold;
                 font-size: 14px;
                 padding: 6px 8px;
                 border: none;
-                background: transparent;
+                background: black;
                 text-align: left;
             }
             QToolButton:checked {
@@ -157,7 +161,6 @@ class SidebarMenu(QWidget):
                 padding: 6px 12px;
                 border: none;
                 background: transparent;
-                /* Sin bordes redondeados */
                 border-radius: 0px;
             }
             QPushButton:checked {
@@ -170,7 +173,9 @@ class SidebarMenu(QWidget):
             QLabel {
                 color: #333;
             }
-        """)
+        """ )
+
+        
 
         self.select_funcionalidad(None)
         self.set_expanded(True)  # Inicialmente expandido
@@ -239,3 +244,4 @@ class NoTitleDockWidget(QDockWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setTitleBarWidget(QWidget(self))
+        self.setStyleSheet("background: green;")

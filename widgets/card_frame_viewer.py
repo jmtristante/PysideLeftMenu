@@ -28,7 +28,7 @@ class CardFrameViewer(QWidget):
             self.current.setParent(None)
         self.current = card_widget
         if card_widget is not None:
-            self._card_container.addWidget(card_widget, Qt.Alignment())  # centrado vertical
+            self._card_container.addWidget(card_widget, alignment=Qt.AlignHCenter | Qt.AlignVCenter)
 
     def clear(self):
         self.set_card(None)

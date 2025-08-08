@@ -3,13 +3,14 @@ import yaml
 from PySide6.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QApplication, QComboBox,
     QTextEdit, QSpinBox, QCheckBox, QTabWidget, QScrollArea, QFrame, QInputDialog, QDialog, QSizePolicy,
-    QGridLayout  # <-- Añadido aquí
+    QGridLayout, QSpacerItem  # <-- Añadido aquí QSpacerItem
 )
 from PySide6.QtCore import Qt
 import sys
 
 # Añade el import del CardFrame
 from widgets.card_frame import CardFrame
+from widgets.input_labeled import LabeledComboBox
 
 class Scope:
     def __init__(self, scopes_dir, name):
@@ -540,6 +541,8 @@ class ScopeEditorWindow(CardFrame):
         self.setMinimumWidth(500)
         MODULE_BASE = 'modules/extraccion'
         self.SCOPES_DIR = os.path.join(MODULE_BASE, "data/scopes")
+        # self.setMinimumWidth(440)
+        # self.setMaximumWidth(480)
 
         card_layout = self.layout()  # Usa el layout de contenido de CardFrame
 
@@ -611,40 +614,55 @@ class ScopeEditorWindow(CardFrame):
             }
         """)
         meta_layout = QGridLayout(self.meta_tab)
-        meta_layout.setContentsMargins(32, 32, 32, 32)
+        meta_layout.setColumnStretch(0, 0)
+        meta_layout.setColumnStretch(1, 0)
+        meta_layout.setColumnMinimumWidth(0, 180)
+        meta_layout.setColumnMinimumWidth(1, 180)
         meta_layout.setHorizontalSpacing(24)
         meta_layout.setVerticalSpacing(18)
         self.meta_fields = {}
 
         # Primera columna
-        meta_layout.addWidget(QLabel("Separator:"), 0, 0)
-        sep_edit = QLineEdit()
-        meta_layout.addWidget(sep_edit, 0, 1)
+        # meta_layout.addWidget(QLabel("Separator:"), 0, 0)
+        # sep_edit = QLineEdit()
+        sep_edit = LabeledComboBox(
+            label="Separador:",
+            items=['|',',',';',':']
+        )
+        meta_layout.addWidget(sep_edit, 0, 0)
         self.meta_fields["Separator"] = sep_edit
 
-        meta_layout.addWidget(QLabel("Extension:"), 1, 0)
-        ext_edit = QLineEdit()
-        meta_layout.addWidget(ext_edit, 1, 1)
-        self.meta_fields["Extension"] = ext_edit
-
-        meta_layout.addWidget(QLabel("Encoding:"), 2, 0)
-        enc_edit = QLineEdit()
-        meta_layout.addWidget(enc_edit, 2, 1)
+        enc_edit = LabeledComboBox(
+            label="Encoding:",
+            items=['UTF-8','ASCII']
+        )
+        meta_layout.addWidget(enc_edit, 0, 1)
         self.meta_fields["Encoding"] = enc_edit
 
-        # Segunda columna
+        ext_edit = LabeledComboBox(
+            label="Extension:",
+            items=['csv','txt']
+        )
+        meta_layout.addWidget(ext_edit, 1, 0)
+        self.meta_fields["Extension"] = ext_edit
+
+        endline_edit = LabeledComboBox(
+            label="Endline:",
+            items=['LF','CRLF']
+        )
+        meta_layout.addWidget(endline_edit, 1, 1)
+        self.meta_fields["Endline"] = endline_edit
+
         header_chk = QCheckBox("Header")
-        meta_layout.addWidget(header_chk, 0, 2)
+        meta_layout.addWidget(header_chk, 2, 0)
         self.meta_fields["Header"] = header_chk
 
         nulable_chk = QCheckBox("Nulable")
-        meta_layout.addWidget(nulable_chk, 1, 2)
+        meta_layout.addWidget(nulable_chk, 2, 1)
         self.meta_fields["Nulable"] = nulable_chk
 
-        meta_layout.addWidget(QLabel("Endline:"), 2, 2)
-        endline_edit = QLineEdit()
-        meta_layout.addWidget(endline_edit, 2, 3)
-        self.meta_fields["Endline"] = endline_edit
+        meta_layout.addItem(QSpacerItem(0, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
 
         self.tabs.addTab(self.meta_tab, "metadata.yaml")
 

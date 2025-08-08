@@ -7,11 +7,21 @@ class CardFrame(QFrame):  # <-- Hereda de Card y QFrame
     def __init__(self, title="Título", parent=None, padding=32, show_close=True):
         super().__init__(parent)
         self.setObjectName("CardFrame")
+        # self.setStyleSheet("""
+        #     QFrame#CardFrame {
+        #         background: #fff;
+        #         border-radius: 16px;
+        #         border: 1px solid #e0e0e0;
+        #     }
+        # """)
         self.setStyleSheet("""
             QFrame#CardFrame {
-                background: #fff;
+                background: white;
                 border-radius: 16px;
-                border: 1px solid #e0e0e0;
+                border: none;
+            }
+            QLabel, QLineEdit, QComboBox, QPushButton {
+                font-size: 14px;
             }
         """)
         main_layout = QVBoxLayout(self)
@@ -23,7 +33,7 @@ class CardFrame(QFrame):  # <-- Hereda de Card y QFrame
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(0)
         self.title_label = QLabel(title)
-        self.title_label.setStyleSheet("font-weight: bold; font-size: 26px; margin-bottom: 8px;")
+        self.title_label.setStyleSheet("font-weight: bold; font-size: 26px; margin-bottom: 8px; background: transparent;")
         header_layout.addWidget(self.title_label, alignment=Qt.AlignLeft)
         header_layout.addStretch()
         if show_close:
@@ -33,12 +43,12 @@ class CardFrame(QFrame):  # <-- Hereda de Card y QFrame
                 QPushButton {
                     border: none;
                     background: transparent;
-                    font-size: 20px;
+                    font-size: 26px;
                     color: #888;
+                    margin-bottom: 8px;
                 }
                 QPushButton:hover {
                     color: #ff4d4f;
-                    background: #fbeaea;
                 }
             """)
             self.close_btn.clicked.connect(self.closed.emit)

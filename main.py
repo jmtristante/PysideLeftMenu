@@ -9,7 +9,7 @@ from modules_config import MODULES  # <-- Importa la configuración de módulos
 from widgets.card_frame import CardFrame
 from widgets.card_frame_viewer import CardFrameViewer
 from modules.extraccion.ui.scope_editor_window import ScopeEditorWindow
-from widgets.sidebar_menu import SidebarMenu, MENU_ITEMS, NoTitleDockWidget
+from widgets.sidebar_menu import SidebarMenu, NoTitleDockWidget
 
 
 # Construir diccionario de clases de pantallas y lista de items de menú
