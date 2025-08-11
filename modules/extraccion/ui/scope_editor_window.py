@@ -10,7 +10,10 @@ import sys
 
 # Añade el import del CardFrame
 from widgets.card_frame import CardFrame
-from widgets.input_labeled import LabeledComboBox, LabeledCheckBox, PrimaryButton, DangerButton
+from widgets.inputs.danger_button import DangerButton
+from widgets.inputs.primary_button import PrimaryButton
+from widgets.inputs.labeled_checkbox import LabeledCheckBox
+from widgets.inputs.labeled_combobox import LabeledComboBox
 
 class Scope:
     def __init__(self, scopes_dir, name):

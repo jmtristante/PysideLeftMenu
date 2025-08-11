@@ -96,4 +96,3 @@ class CardFrame(QFrame):  # <-- Hereda de Card y QFrame
     def layout(self):
         # Devuelve el layout donde añadir widgets de contenido
         return self.content_layout
-        return self.content_layout

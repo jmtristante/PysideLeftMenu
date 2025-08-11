@@ -8,7 +8,11 @@ from PySide6.QtGui import QFont
 import sys
 
 from widgets.card_frame import CardFrame
-from widgets.input_labeled import LabeledComboBox, LabeledLineEdit, LabeledFileInput, PrimaryButton
+from widgets.inputs.danger_button import DangerButton
+from widgets.inputs.primary_button import PrimaryButton
+from widgets.inputs.labeled_lineedit import LabeledLineEdit
+from widgets.inputs.labeled_combobox import LabeledComboBox
+from widgets.inputs.labeled_fileinput import LabeledFileInput
 
 MODULE_BASE = os.path.dirname(os.path.dirname(__file__))
 
