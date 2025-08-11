@@ -10,6 +10,8 @@ from widgets.card_frame import CardFrame
 from widgets.card_frame_viewer import CardFrameViewer
 from modules.extraccion.ui.scope_editor_window import ScopeEditorWindow
 from widgets.sidebar_menu import SidebarMenu, NoTitleDockWidget
+from widgets.input_labeled import LabeledComboBox, LabeledLineEdit, LabeledFileInput, LabeledCheckBox, PrimaryButton, DangerButton
+import palette
 
 
 # Construir diccionario de clases de pantallas y lista de items de menú
@@ -18,23 +20,13 @@ for module in MODULES:
     for comp in module["components"]:
         SCREEN_CLASSES[comp["key"]] = comp["widget"]
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Proyecto PySide6 Modular")
         self.resize(900, 600)
 
-        # Fondo gris global
-        self.setStyleSheet("""
-            QMainWindow, QWidget {
-                background: #f6f7fa;
-            }
-        """)
-
-        # Barra superior solo con nombre (sin botón menú)
-        toolbar = QToolBar()
-        toolbar.setMovable(False)
-        self.addToolBar(Qt.TopToolBarArea, toolbar)
 
         # Elimina el botón menú de la barra superior
         # self.menu_action = QAction()
@@ -60,11 +52,17 @@ class MainWindow(QMainWindow):
 
         self.sidebar_menu = SidebarMenu()
         self.sidebar_menu.funcionalidad_seleccionada.connect(self.cambiar_funcionalidad)
+        self.sidebar_menu.palette_toggled.connect(self.update_palette_all)  # Conecta la señal
         self.sidebar.setWidget(self.sidebar_menu)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.sidebar)
 
-        # Selección inicial: ninguna pantalla cargada
-        #self.card_viewer.set_card(self.blank_screen)
+
+        self.palette_widgets = [self.card_viewer, self.sidebar_menu]
+
+
+        self.setStyleSheet(f"""
+                           background: {palette.palette['mainbackground']};
+                           """)
 
     def cambiar_funcionalidad(self, key):
         if key not in SCREEN_CLASSES:
@@ -94,6 +92,16 @@ class MainWindow(QMainWindow):
             self.sidebar.hide()
         else:
             self.sidebar.show()
+
+    def update_palette_all(self):
+        self.setStyleSheet(f"""
+                           background: {palette.palette['mainbackground']};
+                           """)
+        for w in self.palette_widgets:
+            w.update_palette()
+        for s in self.screens.items():
+            s[1].update_palette()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

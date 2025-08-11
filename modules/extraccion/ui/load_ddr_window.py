@@ -8,7 +8,7 @@ from PySide6.QtGui import QFont
 import sys
 
 from widgets.card_frame import CardFrame
-from widgets.input_labeled import LabeledComboBox, LabeledLineEdit, LabeledFileInput
+from widgets.input_labeled import LabeledComboBox, LabeledLineEdit, LabeledFileInput, PrimaryButton
 
 MODULE_BASE = os.path.dirname(os.path.dirname(__file__))
 
@@ -44,7 +44,6 @@ class LoadDDRWindow(CardFrame):
         self.version_input = LabeledLineEdit(
             label="Versión:",
             placeholder="",
-            lineedit_style="border: 1px solid #d0d0d0; border-radius: 4px;",
             height=32
         )
         row1.addWidget(self.version_input)
@@ -70,20 +69,8 @@ class LoadDDRWindow(CardFrame):
         main_layout.addWidget(self.status_label)
 
         # --- Run button ---
-        self.run_button = QPushButton("Ejecutar")
+        self.run_button = PrimaryButton("Ejecutar")
         self.run_button.setFixedHeight(40)
-        self.run_button.setStyleSheet("""
-            QPushButton {
-                background: #2257f5;
-                color: white;
-                font-weight: bold;
-                border-radius: 7px;
-                font-size: 15px;
-            }
-            QPushButton:pressed {
-                background: #1741b6;
-            }
-        """)
         main_layout.addWidget(self.run_button)
         
         self.setLayout(main_layout)
@@ -127,6 +114,8 @@ class LoadDDRWindow(CardFrame):
         except Exception as e:
             self.status_label.setText(f"Ocurrió un error inesperado")
             QMessageBox.critical(self, "Error", f"{str(e)}")
+
+
 
 
 if __name__ == "__main__":

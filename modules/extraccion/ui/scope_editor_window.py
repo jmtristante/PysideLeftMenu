@@ -10,7 +10,7 @@ import sys
 
 # Añade el import del CardFrame
 from widgets.card_frame import CardFrame
-from widgets.input_labeled import LabeledComboBox
+from widgets.input_labeled import LabeledComboBox, LabeledCheckBox, PrimaryButton, DangerButton
 
 class Scope:
     def __init__(self, scopes_dir, name):
@@ -549,28 +549,19 @@ class ScopeEditorWindow(CardFrame):
         # Scope selector y eliminar
         scope_row = QHBoxLayout()
         scope_row.setSpacing(12)
-        scope_label = QLabel("Scope:")
-        scope_label.setMinimumWidth(60)
-        scope_label.setStyleSheet("font-size: 15px;")
-        self.scope_combo = QComboBox()
-        self.scope_combo.addItems(self.get_scopes() + ["[Nuevo Scope...]"])
-        self.scope_combo.setEditable(False)
-        self.scope_combo.setPlaceholderText("Selecciona o crea un scope")
-        self.scope_combo.setMinimumWidth(220)
-        self.delete_btn = QPushButton("Eliminar Scope")
-        self.delete_btn.setStyleSheet("""
-            QPushButton {
-                background: #ff4d4f;
-                color: #fff;
-                border-radius: 8px;
-                font-weight: bold;
-                padding: 6px 18px;
-            }
-            QPushButton:hover {
-                background: #ff7875;
-            }
-        """)
-        scope_row.addWidget(scope_label)
+        # scope_label = QLabel("Scope:")
+        # scope_label.setMinimumWidth(60)
+        # scope_label.setStyleSheet("font-size: 15px; background: white")
+        self.scope_combo = LabeledComboBox(
+            label="Scope:",
+            items=self.get_scopes() + ["[Nuevo Scope...]"]
+        )
+        self.scope_combo.combobox.setEditable(False)
+        self.scope_combo.combobox.setPlaceholderText("Selecciona o crea un scope")
+        self.scope_combo.combobox.setMinimumWidth(220)
+        self.scope_combo.combobox.setStyleSheet("background: white")
+        self.delete_btn = DangerButton("Eliminar Scope")
+        # scope_row.addWidget(scope_label)
         scope_row.addWidget(self.scope_combo)
         scope_row.addStretch()
         scope_row.addWidget(self.delete_btn)
@@ -581,10 +572,15 @@ class ScopeEditorWindow(CardFrame):
         self.tabs.setStyleSheet("""
             QTabWidget::pane {
                 border: none;
-                background: transparent;
+                background: white;
+                border-radius: 12px;
+                margin-top: 8px;
+            }
+            QTabBar {
+                background: white;
             }
             QTabBar::tab {
-                background: #f3f5f8;
+                background: white;
                 border: 1px solid #e0e0e0;
                 border-bottom: none;
                 border-radius: 8px 8px 0 0;
@@ -595,25 +591,30 @@ class ScopeEditorWindow(CardFrame):
                 padding: 6px 18px;
             }
             QTabBar::tab:selected {
-                background: #fff;
+                background: white;
                 color: #222;
-                border-bottom: 2px solid #fff;
+                border-bottom: 2px solid white;
             }
             QTabBar::tab:!selected {
                 color: #888;
             }
+            QScrollArea, QScrollArea > QWidget {
+                background: white;
+            }
         """)
 
-        # --- METADATA.YAML TAB ---
-        self.meta_tab = QFrame()
-        self.meta_tab.setStyleSheet("""
-            QFrame {
-                background: #fff;
+        # --- METADATA.YAML TAB (scrolleable) ---
+        self.meta_tab_content = QFrame()
+        self.meta_tab_content.setObjectName("MetaTab")
+        self.meta_tab_content.setStyleSheet("""
+            #MetaTab {
+                background: white;  # Usa el mismo color que la card
                 border-radius: 12px;
                 border: 1px solid #e0e0e0;
             }
         """)
-        meta_layout = QGridLayout(self.meta_tab)
+
+        meta_layout = QGridLayout(self.meta_tab_content)
         meta_layout.setColumnStretch(0, 0)
         meta_layout.setColumnStretch(1, 0)
         meta_layout.setColumnMinimumWidth(0, 180)
@@ -653,22 +654,40 @@ class ScopeEditorWindow(CardFrame):
         meta_layout.addWidget(endline_edit, 1, 1)
         self.meta_fields["Endline"] = endline_edit
 
-        header_chk = QCheckBox("Header")
+        # header_chk = QCheckBox("Header")
+        header_chk = LabeledCheckBox("Header")
         meta_layout.addWidget(header_chk, 2, 0)
         self.meta_fields["Header"] = header_chk
 
-        nulable_chk = QCheckBox("Nulable")
+        # nulable_chk = QCheckBox("Nulable")
+        nulable_chk = LabeledCheckBox("Nulable")
         meta_layout.addWidget(nulable_chk, 2, 1)
         self.meta_fields["Nulable"] = nulable_chk
 
         meta_layout.addItem(QSpacerItem(0, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
+        # Hacer scrolleable
+        self.meta_tab = QScrollArea()
+        self.meta_tab.setWidgetResizable(True)
+        self.meta_tab.setFrameShape(QFrame.NoFrame)
+        self.meta_tab.setWidget(self.meta_tab_content)
+        self.meta_tab.setStyleSheet("""
+                background: white;
+        """)
 
         self.tabs.addTab(self.meta_tab, "metadata.yaml")
 
-        # --- DDR.YAML TAB ---
-        self.ddr_tab = QWidget()
-        ddr_layout = QVBoxLayout(self.ddr_tab)
+        # --- DDR.YAML TAB (scrolleable) ---
+        self.ddr_tab_content = QWidget()
+        self.ddr_tab_content.setObjectName("DdrTab")
+        self.ddr_tab_content.setStyleSheet("""
+            #DdrTab {
+                background: white;  # Usa el mismo color que la card
+                border-radius: 12px;
+                border: 1px solid #e0e0e0;
+            }
+        """)
+        ddr_layout = QVBoxLayout(self.ddr_tab_content)
         ddr_layout.setContentsMargins(12, 12, 12, 12)
         ddr_layout.setSpacing(24)
         self.ddr_fields = {}
@@ -698,6 +717,15 @@ class ScopeEditorWindow(CardFrame):
         ddr_layout.addWidget(self.formats_widget)
         self.ddr_fields["formats"] = self.formats_widget
 
+        # Hacer scrolleable
+        self.ddr_tab = QScrollArea()
+        self.ddr_tab.setWidgetResizable(True)
+        self.ddr_tab.setFrameShape(QFrame.NoFrame)
+        self.ddr_tab.setWidget(self.ddr_tab_content)
+        self.ddr_tab.setStyleSheet("""
+                background: white;
+        """)
+
         self.tabs.addTab(self.ddr_tab, "ddr.yaml")
 
         card_layout.addWidget(self.tabs)
@@ -705,34 +733,22 @@ class ScopeEditorWindow(CardFrame):
         # Guardar y estado
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        self.save_btn = QPushButton("Guardar Scope")
-        self.save_btn.setStyleSheet("""
-            QPushButton {
-                background: #1677ff;
-                color: #fff;
-                border-radius: 8px;
-                font-weight: bold;
-                padding: 8px 28px;
-            }
-            QPushButton:hover {
-                background: #4096ff;
-            }
-        """)
+        self.save_btn = PrimaryButton("Guardar Scope")
         btn_row.addWidget(self.save_btn)
         card_layout.addLayout(btn_row)
 
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #888; font-size: 14px; margin-top: 8px;")
+        self.status_label.setStyleSheet("color: #888; font-size: 14px; margin-top: 8px; background: white")
         card_layout.addWidget(self.status_label, alignment=Qt.AlignLeft)
 
         # Conexiones
         self.save_btn.clicked.connect(self.save_scope)
-        self.scope_combo.currentTextChanged.connect(self.on_scope_selected)
+        self.scope_combo.combobox.currentTextChanged.connect(self.on_scope_selected)
         self.delete_btn.clicked.connect(self.delete_scope)
 
         # Carga el scope inicial si existe
-        if self.scope_combo.count() > 0 and self.scope_combo.currentText() != "[Nuevo Scope...]":
-            self.load_scope(self.scope_combo.currentText())
+        if self.scope_combo.combobox.count() > 0 and self.scope_combo.combobox.currentText() != "[Nuevo Scope...]":
+            self.load_scope(self.scope_combo.combobox.currentText())
 
     def get_scopes(self):
         if not os.path.isdir(self.SCOPES_DIR):
@@ -745,16 +761,16 @@ class ScopeEditorWindow(CardFrame):
             if ok and new_scope.strip():
                 new_scope = new_scope.strip()
                 # Añade el nuevo scope y selecciónalo
-                if new_scope not in [self.scope_combo.itemText(i) for i in range(self.scope_combo.count())]:
-                    self.scope_combo.insertItem(self.scope_combo.count() - 1, new_scope)
-                self.scope_combo.setCurrentText(new_scope)
+                if new_scope not in [self.scope_combo.combobox.itemText(i) for i in range(self.scope_combo.combobox.count())]:
+                    self.scope_combo.combobox.insertItem(self.scope_combo.combobox.count() - 1, new_scope)
+                self.scope_combo.combobox.setCurrentText(new_scope)
                 # Limpia los campos
                 self.clear_fields()
                 self.status_label.setText(f"Nuevo scope '{new_scope}' creado. Rellena los datos y guarda.")
             else:
                 # Si cancela, vuelve al anterior
-                prev_scope = self.scope_combo.itemText(0) if self.scope_combo.count() > 1 else ""
-                self.scope_combo.setCurrentText(prev_scope)
+                prev_scope = self.scope_combo.combobox.itemText(0) if self.scope_combo.combobox.count() > 1 else ""
+                self.scope_combo.combobox.setCurrentText(prev_scope)
         else:
             self.load_scope(scope_name)
 
@@ -762,6 +778,8 @@ class ScopeEditorWindow(CardFrame):
         for key, widget in self.meta_fields.items():
             if isinstance(widget, QLineEdit):
                 widget.setText("")
+            elif isinstance(widget, LabeledCheckBox):
+                widget.checkbox.setChecked(False)
             elif isinstance(widget, QCheckBox):
                 widget.setChecked(False)
         for key, widget in self.ddr_fields.items():
@@ -784,11 +802,15 @@ class ScopeEditorWindow(CardFrame):
             if key in meta:
                 if isinstance(widget, QLineEdit):
                     widget.setText(str(meta[key]))
+                elif isinstance(widget, LabeledCheckBox):
+                    widget.checkbox.setChecked(bool(meta[key]))
                 elif isinstance(widget, QCheckBox):
                     widget.setChecked(bool(meta[key]))
             else:
                 if isinstance(widget, QLineEdit):
                     widget.setText("")
+                elif isinstance(widget, LabeledCheckBox):
+                    widget.checkbox.setChecked(False)
                 elif isinstance(widget, QCheckBox):
                     widget.setChecked(False)
         # ddr.yaml
@@ -803,7 +825,7 @@ class ScopeEditorWindow(CardFrame):
         self.status_label.setText(f"Scope '{scope_name}' cargado.")
 
     def save_scope(self):
-        scope_name = self.scope_combo.currentText().strip()
+        scope_name = self.scope_combo.combobox.currentText().strip()
         if not scope_name or scope_name == "[Nuevo Scope...]":
             QMessageBox.warning(self, "Campos incompletos", "Selecciona o crea un scope válido.")
             return
@@ -813,6 +835,8 @@ class ScopeEditorWindow(CardFrame):
         for key, widget in self.meta_fields.items():
             if isinstance(widget, QLineEdit):
                 meta_dict[key] = widget.text()
+            elif isinstance(widget, LabeledCheckBox):
+                meta_dict[key] = widget.checkbox.isChecked()
             elif isinstance(widget, QCheckBox):
                 meta_dict[key] = widget.isChecked()
         # ddr.yaml
@@ -830,15 +854,15 @@ class ScopeEditorWindow(CardFrame):
             scope.save(meta_dict, ddr_dict)
             self.status_label.setText(f"Scope '{scope_name}' guardado correctamente.")
             # Añade el scope si no está en el combo
-            if scope_name not in [self.scope_combo.itemText(i) for i in range(self.scope_combo.count())]:
-                self.scope_combo.insertItem(self.scope_combo.count() - 1, scope_name)
-                self.scope_combo.setCurrentText(scope_name)
+            if scope_name not in [self.scope_combo.combobox.itemText(i) for i in range(self.scope_combo.combobox.count())]:
+                self.scope_combo.combobox.insertItem(self.scope_combo.combobox.count() - 1, scope_name)
+                self.scope_combo.combobox.setCurrentText(scope_name)
         except Exception as e:
             self.status_label.setText("Error al guardar.")
             QMessageBox.critical(self, "Error", f"Ocurrió un error:\n{str(e)}")
 
     def delete_scope(self):
-        scope_name = self.scope_combo.currentText().strip()
+        scope_name = self.scope_combo.combobox.currentText().strip()
         if not scope_name or scope_name == "[Nuevo Scope...]":
             QMessageBox.warning(self, "Eliminar Scope", "Selecciona un scope válido para eliminar.")
             return
@@ -855,20 +879,56 @@ class ScopeEditorWindow(CardFrame):
                 if os.path.isdir(scope_dir):
                     shutil.rmtree(scope_dir)
                 # Elimina del combo y selecciona el primero
-                idx = self.scope_combo.findText(scope_name)
+                idx = self.scope_combo.combobox.findText(scope_name)
                 if idx >= 0:
-                    self.scope_combo.removeItem(idx)
+                    self.scope_combo.combobox.removeItem(idx)
                 # Selecciona el primer scope (índice 0)
-                if self.scope_combo.count() > 0:
-                    self.scope_combo.setCurrentIndex(0)
+                if self.scope_combo.combobox.count() > 0:
+                    self.scope_combo.combobox.setCurrentIndex(0)
                 self.clear_fields()
                 self.status_label.setText(f"Scope '{scope_name}' eliminado.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"No se pudo eliminar el scope:\n{str(e)}")
                 # Selecciona el primer scope (índice 0)
-                if self.scope_combo.count() > 0:
-                    self.scope_combo.setCurrentIndex(0)
+                if self.scope_combo.combobox.count() > 0:
+                    self.scope_combo.combobox.setCurrentIndex(0)
                 self.clear_fields()
                 self.status_label.setText(f"Scope '{scope_name}' eliminado.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"No se pudo eliminar el scope:\n{str(e)}")
+                # Selecciona el primer scope (índice 0)
+                if self.scope_combo.combobox.count() > 0:
+                    self.scope_combo.combobox.setCurrentIndex(0)
+                self.clear_fields()
+                self.status_label.setText(f"Scope '{scope_name}' eliminado.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"No se pudo eliminar el scope:\n{str(e)}")
+                # Selecciona el primer scope (índice 0)
+                if self.scope_combo.combobox.count() > 0:
+                    self.scope_combo.combobox.setCurrentIndex(0)
+                self.clear_fields()
+                self.status_label.setText(f"Scope '{scope_name}' eliminado.")
+                self.scope_combo.combobox.setCurrentIndex(0)
+                self.clear_fields()
+                self.status_label.setText(f"Scope '{scope_name}' eliminado.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"No se pudo eliminar el scope:\n{str(e)}")
+                # Selecciona el primer scope (índice 0)
+                if self.scope_combo.combobox.count() > 0:
+                    self.scope_combo.combobox.setCurrentIndex(0)
+                self.clear_fields()
+                self.status_label.setText(f"Scope '{scope_name}' eliminado.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"No se pudo eliminar el scope:\n{str(e)}")
+                # Selecciona el primer scope (índice 0)
+                if self.scope_combo.combobox.count() > 0:
+                    self.scope_combo.combobox.setCurrentIndex(0)
+                self.clear_fields()
+                self.status_label.setText(f"Scope '{scope_name}' eliminado.")
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"No se pudo eliminar el scope:\n{str(e)}")
+                # Selecciona el primer scope (índice 0)
+                if self.scope_combo.combobox.count() > 0:
+                    self.scope_combo.combobox.setCurrentIndex(0)
+                self.clear_fields()
+                self.status_label.setText(f"Scope '{scope_name}' eliminado.")

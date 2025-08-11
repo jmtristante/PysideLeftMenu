@@ -20,6 +20,7 @@ class CardFrameViewer(QWidget):
         self._main_layout.addLayout(self._card_container)
         self._main_layout.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding))
         self.current = None
+        
 
     def set_card(self, card_widget):
         # Quita el anterior
@@ -32,3 +33,8 @@ class CardFrameViewer(QWidget):
 
     def clear(self):
         self.set_card(None)
+
+    def update_palette(self):
+        return
+        if self.current is not None:
+            self.current.update_palette()
