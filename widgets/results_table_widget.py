@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QTableView
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QTableView, QHeaderView
 from PySide6.QtCore import Qt, QAbstractTableModel, QModelIndex
 import palette
 
@@ -10,8 +10,13 @@ class ResultsTableWidget(QWidget):
         layout.setSpacing(0)
         self.table = QTableView()
         self.table.setObjectName("ResultsTableView")
+        # Oculta la vertical header (columna de selección de filas)
+        self.table.verticalHeader().setVisible(False)
         layout.addWidget(self.table)
         self.set_palette_style()
+        # Ajusta el tamaño de las columnas al contenido de la cabecera
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeToContents)
 
     def setModel(self, model):
         self.table.setModel(model)
@@ -41,15 +46,42 @@ class ResultsTableWidget(QWidget):
                 color: {palette.palette['text']};
                 border: 1px solid {palette.palette['border']};
                 selection-background-color: {palette.palette['selection']};
-                selection-color: {palette.palette['text']};
+                selection-color: {palette.palette['primary_text']};
                 gridline-color: {palette.palette['border']};
                 font-size: 14px;
+                alternate-background-color: {palette.palette['background']};
+            }}
+            QTableView::item {{
+                color: {palette.palette['text']};
+                background: transparent;
+            }}
+            QTableView::item:selected {{
+                color: {palette.palette['primary_text']};
+                background: {palette.palette['primary']};
             }}
             QHeaderView::section {{
                 background: {palette.palette['button_bg']};
-                color: {palette.palette['text']};
+                color: {palette.palette['primary']};
                 border: 1px solid {palette.palette['border']};
                 font-weight: bold;
+                font-size: 15px;
+                padding: 6px 0px;
+            }}
+            QHeaderView {{
+                background: {palette.palette['button_bg']};
+            }}
+            QScrollBar:vertical {{
+                background: {palette.palette['background']};
+                width: 12px;
+                margin: 0px 0px 0px 0px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {palette.palette['primary']};
+                min-height: 20px;
+                border-radius: 6px;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
             }}
         """)
 

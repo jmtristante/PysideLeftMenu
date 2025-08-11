@@ -39,8 +39,11 @@ class CardStacked(QFrame):
             self.back_btn.setFixedSize(32, 32)
             
             header_layout.addWidget(self.back_btn)
+            self.back_btn.clicked.connect(self.go_back)
         else:
             self.back_btn = None
+
+        
 
         self.title_label = QLabel(title)
  
@@ -49,8 +52,8 @@ class CardStacked(QFrame):
         if show_close:
             self.close_btn = QPushButton("✕")
             self.close_btn.setFixedSize(32, 32)
-            
-            self.close_btn.clicked.connect(self.closed.emit)
+
+            self.close_btn.clicked.connect(self.on_close)
             header_layout.addWidget(self.close_btn)
         else:
             self.close_btn = None
@@ -61,6 +64,10 @@ class CardStacked(QFrame):
         # Stacked widget para el contenido
         self.stacked = QStackedWidget()
         main_layout.addWidget(self.stacked)
+    
+    def on_close(self):
+        self.closed.emit()
+        self.close()  # o self.close() si es un QDialog o QWidget
 
     def set_palette_style(self):
         self.setStyleSheet(f"""
@@ -132,5 +139,4 @@ class CardStacked(QFrame):
         idx = self.stacked.currentIndex()
         if idx > 0:
             self.stacked.setCurrentIndex(idx - 1)
-            self.back.emit()
             self.back.emit()

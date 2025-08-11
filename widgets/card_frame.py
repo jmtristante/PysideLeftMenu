@@ -41,7 +41,7 @@ class CardFrame(QFrame):  # <-- Hereda de Card y QFrame
         if self.show_close:
             self.close_btn = QPushButton("✕")
             self.close_btn.setFixedSize(32, 32)
-            self.close_btn.clicked.connect(self.closed.emit)
+            self.close_btn.clicked.connect(self.on_close)
             header_layout.addWidget(self.close_btn)
         else:
             self.close_btn = None
@@ -52,6 +52,10 @@ class CardFrame(QFrame):  # <-- Hereda de Card y QFrame
         self.content_layout.setSpacing(18)
         main_layout.addLayout(self.content_layout)
         self.set_palette_style()
+
+    def on_close(self):
+        self.closed.emit()
+        self.close()  # o self.close() si es un QDialog o QWidget
 
     def set_palette_style(self):
         self.setStyleSheet(f"""

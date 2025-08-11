@@ -2,8 +2,9 @@ import sqlite3
 import pandas as pd
 from PySide6.QtCore import Qt, QThread, Signal, QObject
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTableWidget, \
-    QTableWidgetItem, QProgressBar
+    QTableWidgetItem, QProgressBar, QWidget
 import os
+from widgets.results_table_widget import ResultsTableWidget
 
 MODULE_BASE = os.path.dirname(os.path.dirname(__file__))
 
@@ -43,30 +44,30 @@ class FileLoaderWorker(QObject):
             self.error.emit(str(e))
 
 
-class FileViewerDialog(QDialog):
+class FileViewerWidget(QWidget):
     PAGE_SIZE = 1000  # Número de filas por página
 
-    def __init__(self, extractor_file, parent=None):
+    def __init__(self, extractor_file, on_close=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Vista de fichero")
         self.extractor_file = extractor_file
         self.file_content = None
         self.current_page = 0
         self.total_rows = 0
         self.sql_query = ""
         self.filtered_df = None
+        self.on_close = on_close
 
         layout = QVBoxLayout(self)
 
-        self.loading_label = QLabel("Cargando fichero...")
-        self.loading_label.setAlignment(Qt.AlignCenter)
-        self.loading_label.setVisible(True)
-        layout.addWidget(self.loading_label)
+        # self.loading_label = QLabel("Cargando fichero...")
+        # self.loading_label.setAlignment(Qt.AlignCenter)
+        # self.loading_label.setVisible(True)
+        # layout.addWidget(self.loading_label)
 
-        self.progress_bar = QProgressBar(self)
-        self.progress_bar.setRange(0, 0)
-        self.progress_bar.setVisible(True)
-        layout.addWidget(self.progress_bar)
+        # self.progress_bar = QProgressBar(self)
+        # self.progress_bar.setRange(0, 0)
+        # self.progress_bar.setVisible(True)
+        # layout.addWidget(self.progress_bar)
 
         query_layout = QHBoxLayout()
         query_layout.addWidget(QLabel("Consulta SQL (ej: SELECT * FROM data WHERE edad < 10):"))
@@ -90,7 +91,7 @@ class FileViewerDialog(QDialog):
         self.error_label.setVisible(False)
         layout.addWidget(self.error_label)
 
-        self.table = QTableWidget(self)
+        self.table = ResultsTableWidget(self)
         layout.addWidget(self.table)
 
         pag_layout = QHBoxLayout()
@@ -105,16 +106,21 @@ class FileViewerDialog(QDialog):
         layout.addLayout(pag_layout)
 
         close_btn = QPushButton("Cerrar")
-        close_btn.clicked.connect(self.accept)
+        close_btn.clicked.connect(self.handle_close)
         layout.addWidget(close_btn)
 
-        self.resize(900, 600)
-        self.show()
+        # self.resize(900, 600)
         self.start_loading_threaded()
 
+    def handle_close(self):
+        print("Cerrando visor de archivos...")
+        if self.on_close:
+            self.on_close()
+        # Si está en un QStackedWidget, puede ocultarse/eliminarse desde fuera
+
     def start_loading_threaded(self):
-        self.loading_label.setVisible(True)
-        self.progress_bar.setVisible(True)
+        # self.loading_label.setVisible(True)
+        # self.progress_bar.setVisible(True)
         self.set_widgets_enabled(False)
         self.thread = QThread()
         self.worker = FileLoaderWorker(self.extractor_file, self.sql_query, self.current_page * self.PAGE_SIZE, self.PAGE_SIZE)
@@ -155,8 +161,8 @@ class FileViewerDialog(QDialog):
 
     def on_loaded(self, df):
         self.file_content = df
-        self.loading_label.setVisible(False)
-        self.progress_bar.setVisible(False)
+        # self.loading_label.setVisible(False)
+        # self.progress_bar.setVisible(False)
         self.set_widgets_enabled(True)
         # Si la página está vacía pero hay más registros, recalcula el total y muestra la página anterior
         if df is not None and df.empty and self.current_page > 0:
@@ -166,8 +172,8 @@ class FileViewerDialog(QDialog):
         self.load_data()
 
     def on_error(self, msg):
-        self.loading_label.setVisible(False)
-        self.progress_bar.setVisible(False)
+        # self.loading_label.setVisible(False)
+        # self.progress_bar.setVisible(False)
         self.error_label.setText(f"Error al cargar: {msg}")
         self.error_label.setVisible(True)
         self.set_widgets_enabled(True)
@@ -188,8 +194,8 @@ class FileViewerDialog(QDialog):
         self.current_page = 0
         self.total_rows = 0  # recalcula el total
         self.loading_label.setText("Ejecutando consulta...")
-        self.loading_label.setVisible(True)
-        self.progress_bar.setVisible(True)
+        # self.loading_label.setVisible(True)
+        # self.progress_bar.setVisible(True)
         self.set_widgets_enabled(False)
         # Limpia el hilo anterior antes de lanzar uno nuevo
         try:
@@ -255,8 +261,7 @@ class FileViewerDialog(QDialog):
     def load_data(self):
         df = self.file_content
         if df is None or df.empty:
-            self.table.setRowCount(0)
-            self.table.setColumnCount(0)
+            self.table.setModel(None)
             self.page_label.setText("Sin datos")
             self.prev_btn.setEnabled(False)
             self.next_btn.setEnabled(False)
@@ -265,15 +270,38 @@ class FileViewerDialog(QDialog):
         self.getTotalRows()
 
         total_pages = ((self.total_rows - 1) // self.PAGE_SIZE) + 1 if self.total_rows else 1
-        self.table.setRowCount(len(df))
-        self.table.setColumnCount(len(df.columns))
-        self.table.setHorizontalHeaderLabels([str(col) for col in df.columns])
-        for i, row in enumerate(df.itertuples(index=False)):
-            for j, value in enumerate(row):
-                self.table.setItem(i, j, QTableWidgetItem(str(value)))
+
+        # Crea un modelo temporal para mostrar el DataFrame en ResultsTableWidget
+        from PySide6.QtCore import QAbstractTableModel, QModelIndex
+
+        class PandasTableModel(QAbstractTableModel):
+            def __init__(self, df, parent=None):
+                super().__init__(parent)
+                self._df = df
+
+            def rowCount(self, parent=QModelIndex()):
+                return len(self._df)
+
+            def columnCount(self, parent=QModelIndex()):
+                return len(self._df.columns)
+
+            def data(self, index, role=Qt.DisplayRole):
+                if not index.isValid():
+                    return None
+                if role == Qt.DisplayRole:
+                    value = self._df.iloc[index.row(), index.column()]
+                    return str(value)
+                return None
+
+            def headerData(self, section, orientation, role=Qt.DisplayRole):
+                if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+                    return str(self._df.columns[section])
+                return None
+
+        model = PandasTableModel(df)
+        self.table.setModel(model)
 
         self.page_label.setText(f"Página {self.current_page + 1} / {total_pages}")
-        # Habilita los botones correctamente según la página actual y el total
         self.prev_btn.setEnabled(self.current_page > 0)
         self.next_btn.setEnabled(self.current_page < (total_pages - 1))
 
@@ -286,3 +314,4 @@ class FileViewerDialog(QDialog):
         if self.current_page > 0:
             self.current_page -= 1
             self.run_page_query()
+

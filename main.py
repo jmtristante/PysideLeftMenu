@@ -125,29 +125,6 @@ def apply_qt_palette(is_dark):
         palette.setColor(QPalette.HighlightedText, QColor("#222b45"))
     QApplication.instance().setPalette(palette)
 
-def apply_global_stylesheet(is_dark):
-    if is_dark:
-        css = """
-        QWidget { background: #23272e; color: #e3e6ed; }
-        QLineEdit, QComboBox, QTextEdit, QSpinBox {
-            background: #2d3748; color: #e3e6ed; border: 1px solid #3a3f4b; border-radius: 4px;
-        }
-        QPushButton {
-            background: #2d3748; color: #e3e6ed; border-radius: 8px;
-        }
-        """
-    else:
-        css = """
-        QWidget { background: #ffffff; color: #222b45; }
-        QLineEdit, QComboBox, QTextEdit, QSpinBox {
-            background: #f5f7fa; color: #222b45; border: 1px solid #e3e6ed; border-radius: 4px;
-        }
-        QPushButton {
-            background: #f0f4fa; color: #222b45; border-radius: 8px;
-        }
-        """
-    QApplication.instance().setStyleSheet(css)
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()

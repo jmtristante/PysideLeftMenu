@@ -16,15 +16,35 @@ from widgets.inputs.primary_button import PrimaryButton
 from widgets.inputs.danger_button import DangerButton
 from widgets.results_table_widget import ResultsTableWidget, TestTableModel
 
-from modules.extraccion.src.FileViewer import FileViewerDialog
+from modules.extraccion.src.FileViewer import FileViewerWidget
 from modules.extraccion.ui.error_page import ErrorViewerDialog
 from modules.extraccion.src.test_controller import TestController
 
 MODULE_BASE = os.path.dirname(os.path.dirname(__file__))
 
-class TestFormPage(QWidget):
+class CaseInsensitiveFilterProxyModel(QSortFilterProxyModel):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setFilterCaseSensitivity(Qt.CaseInsensitive)
+        self.setFilterKeyColumn(-1)  # -1 = all columns
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        # Usa self.filterRegularExpression() en vez de filterRegExp()
+        regex = self.filterRegularExpression()
+        if regex.pattern():
+            model = self.sourceModel()
+            for column in range(model.columnCount()):
+                ix = model.index(source_row, column, source_parent)
+                data = model.data(ix, Qt.DisplayRole)
+                if data and regex.match(str(data)).hasMatch():
+                    return True
+            return False
+        return True
+
+class TestFormPage(QWidget):
+    def __init__(self, controller, parent=None):
+        super().__init__(parent)
+        self.controller = controller
         self.layout = QVBoxLayout(self)
         self.scope_form_layout = QHBoxLayout()
         self.folder_form_layout = QHBoxLayout()
@@ -49,6 +69,13 @@ class TestFormPage(QWidget):
         self.next_button.setEnabled(False)
         self.layout.addWidget(self.next_button)
 
+        self.scope_combo.combobox.currentTextChanged.connect(self.on_scope_selected)
+        self.version_combo.combobox.currentTextChanged.connect(self.on_version_selected)
+        self.next_button.clicked.connect(self.goto_results_page)
+        self.input_folder_lineedit.button.clicked.connect(self.select_input_folder)
+        self.input_folder = None
+        self.results_page = None  # Se asigna desde TestPage
+
     def set_scopes(self, scopes):
         self.scope_combo.combobox.clear()
         self.scope_combo.combobox.addItem("Selecciona un scope...")
@@ -69,29 +96,54 @@ class TestFormPage(QWidget):
         self.input_folder_lineedit.setEnabled(False)
         self.next_button.setEnabled(False)
 
-    def connect_signals(self, select_input_folder_func, next_func):
-        self.input_folder_lineedit.button.clicked.connect(select_input_folder_func)
-        self.next_button.clicked.connect(next_func)
+    def load_scopes(self):
+        scopes = self.controller.load_scopes()
+        self.set_scopes(scopes)
 
-    def ask_input_folder(self):
+    def on_scope_selected(self, scope_name):
+        if self.results_page:
+            self.results_page.reset()
+        self.input_folder = None
+        if scope_name != "Selecciona un scope...":
+            versions = self.controller.load_versions(scope_name)
+            self.set_versions(versions)
+            self.version_combo.combobox.setEnabled(True)
+
+    def on_version_selected(self, version_name):
+        self.input_folder_lineedit.setEnabled(True)
+        if self.results_page:
+            self.results_page.reset()
+        self.input_folder = None
+
+    def select_input_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Selecciona la carpeta con los ficheros reales")
         if folder:
             self.input_folder_lineedit.lineedit.setText(folder)
-            return folder
-        return None
+            self.input_folder = folder
+            if self.results_page:
+                self.results_page.build_pending_matrix()
+                self.results_page.run_button.setEnabled(True)
+                self.results_page.abort_button.setEnabled(True)
+            self.next_button.setEnabled(True)
+
+    def goto_results_page(self):
+        if self.parent():
+            self.parent().setCurrentIndex(1)
 
 class TestResultsPage(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, controller, filter_proxy_model, parent=None):
         super().__init__(parent)
+        self.controller = controller
+        self.filter_proxy_model = filter_proxy_model
         self.layout = QVBoxLayout(self)
 
-        self.filter_proxy_model = QSortFilterProxyModel()
         self.filter_lineedit = LabeledLineEdit("Filtrar:")
         self.filter_lineedit.lineedit.setPlaceholderText("Filtrar...")
         self.layout.addWidget(self.filter_lineedit)
 
-        self.results_table = QTableView()
-        self.results_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.results_table = ResultsTableWidget()
+        # Asegura que el QTableView acepte eventos de contexto
+        self.results_table.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.layout.addWidget(self.results_table)
 
         self.layout.addSpacing(20)
@@ -124,6 +176,109 @@ class TestResultsPage(QWidget):
 
         self.layout.addLayout(progress_layout)
 
+        self.form_page = None  # Se asigna desde TestPage
+        self.model = None
+
+        self.filter_lineedit.lineedit.textChanged.connect(self.filter_proxy_model.setFilterRegularExpression)
+        self.results_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.results_table.customContextMenuRequested.connect(self.show_context_menu)
+        self.results_table.clicked(self.show_log_dialog)
+        self.run_button.clicked.connect(self.run_tests)
+        self.pause_button.clicked.connect(self.controller.pause)
+        self.resume_button.clicked.connect(self.controller.resume)
+        self.abort_button.clicked.connect(self.controller.abort)
+        self.restart_button.clicked.connect(self.restart_tests)
+        self.controller.test_status_changed.connect(self.update_cell)
+        self.controller.test_progress.connect(self.set_progress)
+        self.controller.tests_finished.connect(self.set_buttons_on_finish)
+
+    def build_pending_matrix(self):
+        self.progress_bar.setValue(0)
+        self.progress_bar.setEnabled(False)
+        scope_name = self.form_page.scope_combo.currentText()
+        version_name = self.form_page.version_combo.currentText()
+        files, test_objects = self.controller.build_pending_matrix(scope_name, version_name, self.form_page.input_folder)
+        self.model = TestTableModel(files, test_objects, self.controller.test_classes)
+        self.set_model(self.model, self.filter_proxy_model)
+        # Asegura que el menú contextual funcione tras cambiar el modelo
+        self.results_table.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.results_table.table.customContextMenuRequested.connect(self.show_context_menu)
+
+    def show_context_menu(self, position):
+        # Usa el QTableView interno para el index
+        index = self.results_table.table.indexAt(position)
+        if not index.isValid():
+            return
+        source_index = self.filter_proxy_model.mapToSource(index)
+        row = source_index.row()
+        col = index.column()
+        menu = QMenu()
+        if col == 0:
+            action_view = QAction("Ver fichero", self)
+            action_view.triggered.connect(lambda: self.show_file_dialog(row))
+            menu.addAction(action_view)
+            action = QAction("Reejecutar todos los tests de este fichero", self)
+            action.triggered.connect(lambda: self.controller.reenqueue_row(row))
+            menu.addAction(action)
+        else:
+            action = QAction("Reejecutar test", self)
+            test = self.controller.test_objects[row][col - 1]
+            action.triggered.connect(lambda: self.controller.reenqueue_test(test, row, col))
+            menu.addAction(action)
+            action2 = QAction("Ver errores", self)
+            test = self.controller.test_objects[row][col - 1]
+            action2.triggered.connect(lambda: self.show_error_dialog(test))
+            menu.addAction(action2)
+        menu.exec(self.results_table.table.viewport().mapToGlobal(position))
+
+    def show_file_dialog(self, row):
+        extractor_file = self.controller.test_objects[row][0].extractor_file
+        # Busca el ancestro que sea instancia de TestPage
+        parent = self.parent()
+        while parent is not None and not isinstance(parent, TestPage):
+            parent = parent.parent()
+        parent.show_file_viewer(extractor_file)
+        
+
+    def show_error_dialog(self, test):
+        errors_dict = getattr(test, "errors", {})
+        dialog = ErrorViewerDialog(errors_dict)
+        dialog.exec()
+
+    def show_log_dialog(self, index):
+        row = index.row()
+        col = index.column()
+        if col == 0:
+            return
+        try:
+            test = self.controller.test_objects[row][col - 1]
+        except IndexError:
+            return
+        log_text = getattr(test, "log", "(Sin log)")
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Log - {self.model.test_names[col - 1]}")
+        layout = QVBoxLayout(dialog)
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+        text_edit.setPlainText(log_text)
+        layout.addWidget(text_edit)
+        close_btn = QPushButton("Cerrar")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        dialog.resize(500, 400)
+        dialog.exec()
+
+    def run_tests(self):
+        self.set_buttons_on_run()
+        self.controller.start_tests()
+
+    def restart_tests(self):
+        self.set_buttons_on_restart()
+        self.build_pending_matrix()
+
+    def update_cell(self, row, col, status):
+        self.model.update_test_status(row, col, status)
+
     def set_model(self, model, filter_proxy_model):
         filter_proxy_model.setSourceModel(model)
         filter_proxy_model.setFilterKeyColumn(0)
@@ -142,69 +297,6 @@ class TestResultsPage(QWidget):
         self.resume_button.setEnabled(False)
         self.abort_button.setEnabled(False)
         self.restart_button.setEnabled(False)
-
-    def connect_signals(self, filter_func, context_menu_func, log_func, run_func, pause_func, resume_func, abort_func, restart_func):
-        self.filter_lineedit.lineedit.textChanged.connect(filter_func)
-        self.results_table.customContextMenuRequested.connect(context_menu_func)
-        self.results_table.clicked.connect(log_func)
-        self.run_button.clicked.connect(run_func)
-        self.pause_button.clicked.connect(pause_func)
-        self.resume_button.clicked.connect(resume_func)
-        self.abort_button.clicked.connect(abort_func)
-        self.restart_button.clicked.connect(restart_func)
-
-    def show_context_menu(self, controller, filter_proxy_model, parent):
-        def handler(position):
-            index = self.results_table.indexAt(position)
-            if not index.isValid():
-                return
-            source_index = filter_proxy_model.mapToSource(index)
-            row = source_index.row()
-            col = index.column()
-            menu = QMenu()
-            if col == 0:
-                action_view = QAction("Ver fichero", parent)
-                action_view.triggered.connect(lambda: parent.show_file_dialog(row))
-                menu.addAction(action_view)
-                action = QAction("Reejecutar todos los tests de este fichero", parent)
-                action.triggered.connect(lambda: controller.reenqueue_row(row))
-                menu.addAction(action)
-            else:
-                action = QAction("Reejecutar test", parent)
-                test = controller.test_objects[row][col - 1]
-                action.triggered.connect(lambda: controller.reenqueue_test(test, row, col))
-                menu.addAction(action)
-                action2 = QAction("Ver errores", parent)
-                test = controller.test_objects[row][col - 1]
-                action2.triggered.connect(lambda: parent.show_error_dialog(test))
-                menu.addAction(action2)
-            menu.exec(self.results_table.viewport().mapToGlobal(position))
-        return handler
-
-    def show_log_dialog(self, controller, parent):
-        def handler(index):
-            row = index.row()
-            col = index.column()
-            if col == 0:
-                return
-            try:
-                test = controller.test_objects[row][col - 1]
-            except IndexError:
-                return
-            log_text = getattr(test, "log", "(Sin log)")
-            dialog = QDialog(parent)
-            dialog.setWindowTitle(f"Log - {parent.model.test_names[col - 1]}")
-            layout = QVBoxLayout(dialog)
-            text_edit = QTextEdit()
-            text_edit.setReadOnly(True)
-            text_edit.setPlainText(log_text)
-            layout.addWidget(text_edit)
-            close_btn = QPushButton("Cerrar")
-            close_btn.clicked.connect(dialog.accept)
-            layout.addWidget(close_btn)
-            dialog.resize(500, 400)
-            dialog.exec()
-        return handler
 
     def set_progress(self, executed, total):
         self.progress_bar.setMaximum(total)
@@ -253,108 +345,19 @@ class TestPage(CardStacked):
         self.controller = TestController(scopes_base_path)
         self.input_folder = None
         self.model = None
-        self.filter_proxy_model = QSortFilterProxyModel()
-        self.init_pages()
-        self.connect_signals()
-        self.load_scopes()
-
-    def init_pages(self):
-        self.form_page = TestFormPage()
-        self.results_page = TestResultsPage()
+        self.filter_proxy_model = CaseInsensitiveFilterProxyModel()
+        #self.filter_proxy_model = QSortFilterProxyModel()
+        self.form_page = TestFormPage(self.controller, parent=self)
+        self.results_page = TestResultsPage(self.controller, self.filter_proxy_model, parent=self)
+        # Enlaza referencias cruzadas
+        self.form_page.results_page = self.results_page
+        self.results_page.form_page = self.form_page
         self.add_widget(self.form_page)
         self.add_widget(self.results_page)
         self.set_current_index(0)
-        if self.back_btn:
-            self.back_btn.clicked.connect(lambda: self.set_current_index(0))
-
-    def connect_signals(self):
-        self.form_page.scope_combo.combobox.currentTextChanged.connect(self.on_scope_selected)
-        self.form_page.version_combo.combobox.currentTextChanged.connect(self.on_version_selected)
-        self.form_page.next_button.clicked.connect(lambda: self.set_current_index(1))
-        self.form_page.input_folder_lineedit.button.clicked.connect(self.handle_select_input_folder)
-        self.results_page.filter_lineedit.lineedit.textChanged.connect(self.filter_proxy_model.setFilterRegularExpression)
-        self.results_page.results_table.customContextMenuRequested.connect(
-            self.results_page.show_context_menu(self.controller, self.filter_proxy_model, self)
-        )
-        self.results_page.results_table.clicked.connect(
-            self.results_page.show_log_dialog(self.controller, self)
-        )
-        self.results_page.run_button.clicked.connect(self.handle_run_tests)
-        self.results_page.pause_button.clicked.connect(self.handle_pause_tests)
-        self.results_page.resume_button.clicked.connect(self.handle_resume_tests)
-        self.results_page.abort_button.clicked.connect(self.handle_abort_tests)
-        self.results_page.restart_button.clicked.connect(self.handle_restart_tests)
-        self.controller.test_status_changed.connect(self.handle_update_cell)
-        self.controller.test_progress.connect(self.results_page.set_progress)
-        self.controller.tests_finished.connect(self.results_page.set_buttons_on_finish)
-
-    def load_scopes(self):
-        scopes = self.controller.load_scopes()
-        self.form_page.set_scopes(scopes)
-
-    def on_scope_selected(self, scope_name):
-        self.results_page.reset()
-        self.input_folder = None
-        if scope_name != "Selecciona un scope...":
-            versions = self.controller.load_versions(scope_name)
-            self.form_page.set_versions(versions)
-            self.form_page.version_combo.combobox.setEnabled(True)
-
-    def on_version_selected(self, version_name):
-        self.form_page.input_folder_lineedit.setEnabled(True)
-        self.results_page.reset()
-        self.input_folder = None
-
-    def handle_select_input_folder(self):
-        folder = self.form_page.ask_input_folder()
-        if folder:
-            self.input_folder = folder
-            self.build_pending_matrix()
-            self.results_page.run_button.setEnabled(True)
-            self.results_page.abort_button.setEnabled(True)
-            self.form_page.next_button.setEnabled(True)
-
-    def build_pending_matrix(self):
-        self.results_page.progress_bar.setValue(0)
-        self.results_page.progress_bar.setEnabled(False)
-        scope_name = self.form_page.scope_combo.currentText()
-        version_name = self.form_page.version_combo.currentText()
-        files, test_objects = self.controller.build_pending_matrix(scope_name, version_name, self.input_folder)
-        self.model = TestTableModel(files, test_objects, self.controller.test_classes)
-        self.results_page.set_model(self.model, self.filter_proxy_model)
-
-    def handle_run_tests(self):
-        self.results_page.set_buttons_on_run()
-        self.controller.start_tests()
-
-    def handle_update_cell(self, row, col, status):
-        self.model.update_test_status(row, col, status)
-
-    def handle_pause_tests(self):
-        self.controller.pause()
-        self.results_page.set_buttons_on_pause()
-
-    def handle_resume_tests(self):
-        self.controller.resume()
-        self.results_page.set_buttons_on_resume()
-
-    def handle_abort_tests(self):
-        self.controller.abort()
-        self.results_page.set_buttons_on_abort()
-
-    def handle_restart_tests(self):
-        self.results_page.set_buttons_on_restart()
-        self.build_pending_matrix()
-
-    def show_file_dialog(self, row):
-        extractor_file = self.controller.test_objects[row][0].extractor_file
-        dialog = FileViewerDialog(extractor_file, self)
-        dialog.exec()
-
-    def show_error_dialog(self, test):
-        errors_dict = getattr(test, "errors", {})
-        dialog = ErrorViewerDialog(errors_dict)
-        dialog.exec()
+        # Inicialización de datos
+        self.form_page.load_scopes()
+        self.file_viewer = None
 
     def close_background_tasks(self):
         if hasattr(self, "controller"):
@@ -368,6 +371,33 @@ class TestPage(CardStacked):
                 self.controller.thread_pool.waitForDone(1000)
         print("Tareas de fondo cerradas correctamente.")
 
+    def show_file_viewer(self, extractor_file):
+        def remove_viewer():
+            idx = self.stacked.indexOf(self.file_viewer)
+            if idx != -1:
+                self.stacked.removeWidget(self.file_viewer)
+                self.file_viewer.deleteLater()
+                self.file_viewer = None
+        if self.file_viewer is not None:
+            remove_viewer()
+        self.file_viewer = FileViewerWidget(extractor_file, on_close=remove_viewer)
+        self.add_widget(self.file_viewer)
+        self.set_current_index(self.stacked.indexOf(self.file_viewer))
+        self.stacked.currentChanged.connect(self._on_stack_changed)
+
+    def _on_stack_changed(self, idx):
+        # Si el visor de archivos ya no está visible, elimínalo
+        if self.file_viewer is not None:
+            current_widget = self.stacked.currentWidget()
+            if current_widget is not self.file_viewer:
+                idx = self.stacked.indexOf(self.file_viewer)
+                if idx != -1:
+                    self.stacked.removeWidget(self.file_viewer)
+                    self.file_viewer.close()
+                    self.file_viewer = None
+                # Desconecta la señal para evitar múltiples conexiones
+                self.stacked.currentChanged.disconnect(self._on_stack_changed)
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     scopes_base = os.path.join(MODULE_BASE, "data/scopes")
@@ -375,8 +405,4 @@ if __name__ == "__main__":
     window.resize(900, 500)
     window.show()
     sys.exit(app.exec())
-    scopes_base = os.path.join(MODULE_BASE, "data/scopes")
-    window = TestPage(scopes_base)
-    window.resize(900, 500)
-    window.show()
-    sys.exit(app.exec())
+
