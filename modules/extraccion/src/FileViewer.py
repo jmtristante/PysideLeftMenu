@@ -4,6 +4,10 @@ from PySide6.QtCore import Qt, QThread, Signal, QObject
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QTableWidget, \
     QTableWidgetItem, QProgressBar, QWidget
 import os
+from widgets.inputs.danger_button import DangerButton
+from widgets.inputs.labeled_lineedit import LabeledLineEdit
+from widgets.inputs.primary_button import PrimaryButton
+from widgets.inputs.secondary_button import SecondaryButton
 from widgets.results_table_widget import ResultsTableWidget
 
 MODULE_BASE = os.path.dirname(os.path.dirname(__file__))
@@ -49,6 +53,7 @@ class FileViewerWidget(QWidget):
 
     def __init__(self, extractor_file, on_close=None, parent=None):
         super().__init__(parent)
+        print("Inicializando visor de archivos...")
         self.extractor_file = extractor_file
         self.file_content = None
         self.current_page = 0
@@ -70,10 +75,9 @@ class FileViewerWidget(QWidget):
         # layout.addWidget(self.progress_bar)
 
         query_layout = QHBoxLayout()
-        query_layout.addWidget(QLabel("Consulta SQL (ej: SELECT * FROM data WHERE edad < 10):"))
-        self.sql_edit = QLineEdit()
+        self.sql_edit = LabeledLineEdit(placeholder="Consulta SQL:")
         query_layout.addWidget(self.sql_edit)
-        apply_btn = QPushButton("Ejecutar")
+        apply_btn = PrimaryButton("Ejecutar")
         apply_btn.clicked.connect(self.apply_sql_query)
         query_layout.addWidget(apply_btn)
         layout.addLayout(query_layout)
@@ -95,17 +99,17 @@ class FileViewerWidget(QWidget):
         layout.addWidget(self.table)
 
         pag_layout = QHBoxLayout()
-        self.prev_btn = QPushButton("Anterior")
+        self.prev_btn = SecondaryButton("Anterior")
         self.prev_btn.clicked.connect(self.prev_page)
         pag_layout.addWidget(self.prev_btn)
         self.page_label = QLabel()
         pag_layout.addWidget(self.page_label)
-        self.next_btn = QPushButton("Siguiente")
+        self.next_btn = SecondaryButton("Siguiente")
         self.next_btn.clicked.connect(self.next_page)
         pag_layout.addWidget(self.next_btn)
         layout.addLayout(pag_layout)
 
-        close_btn = QPushButton("Cerrar")
+        close_btn = DangerButton("Cerrar")
         close_btn.clicked.connect(self.handle_close)
         layout.addWidget(close_btn)
 
@@ -193,7 +197,7 @@ class FileViewerWidget(QWidget):
         self.error_label.setVisible(False)
         self.current_page = 0
         self.total_rows = 0  # recalcula el total
-        self.loading_label.setText("Ejecutando consulta...")
+        #self.loading_label.setText("Ejecutando consulta...")
         # self.loading_label.setVisible(True)
         # self.progress_bar.setVisible(True)
         self.set_widgets_enabled(False)

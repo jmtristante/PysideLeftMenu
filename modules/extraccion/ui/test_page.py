@@ -137,7 +137,7 @@ class TestResultsPage(QWidget):
         self.filter_proxy_model = filter_proxy_model
         self.layout = QVBoxLayout(self)
 
-        self.filter_lineedit = LabeledLineEdit("Filtrar:")
+        self.filter_lineedit = LabeledLineEdit()
         self.filter_lineedit.lineedit.setPlaceholderText("Filtrar...")
         self.layout.addWidget(self.filter_lineedit)
 

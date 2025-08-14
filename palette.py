@@ -14,6 +14,9 @@ light_palette = {
     "danger_text": "#ffffff",
     "card_bg": "#ffffff",
     "close_icon": "#a0aec0",
+    "secondary": "#64748b",
+    "secondary_hover": "#334155",
+    "secondary_text": "#ffffff",
 }
 
 dark_palette = {
@@ -32,6 +35,9 @@ dark_palette = {
     "danger_text": "#ffffff",
     "card_bg": "#2d3748",
     "close_icon": "#a0aec0",
+    "secondary": "#64748b",
+    "secondary_hover": "#334155",
+    "secondary_text": "#ffffff",
 }
 
 # Por defecto, usa la paleta clara

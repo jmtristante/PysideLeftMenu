@@ -2,20 +2,22 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit
 import palette
 
 class LabeledLineEdit(QWidget):
-    def __init__(self, label, placeholder="", lineedit_style=None, height=32, parent=None):
+    def __init__(self, label= False, placeholder="", lineedit_style=None, height=32, parent=None):
         super().__init__(parent)
         self.setObjectName("LabeledLineEdit")
         layout = QVBoxLayout(self)
         layout.setSpacing(2)
         layout.setContentsMargins(0, 0, 0, 0)
-        lbl = QLabel(label)
-        lbl.setStyleSheet("font-size: 13px; margin-bottom: 0px; background: transparent;")
+        if label:
+            lbl = QLabel(label)
+            lbl.setStyleSheet("font-size: 13px; margin-bottom: 0px; background: transparent;")
+            layout.addWidget(lbl)
+
         self.lineedit = QLineEdit()
         self.lineedit.setPlaceholderText(placeholder)
         self.lineedit.setFixedHeight(height)
         self.lineedit_style = lineedit_style
         self.set_palette_style()
-        layout.addWidget(lbl)
         layout.addWidget(self.lineedit)
 
     def set_palette_style(self):
@@ -27,3 +29,6 @@ class LabeledLineEdit(QWidget):
 
     def update_palette(self):
         self.set_palette_style()
+
+    def text(self):
+        return self.lineedit.text()
